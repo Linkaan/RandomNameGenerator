@@ -12,10 +12,15 @@
 
 require 'unicode'
 
-CONS_LATIN = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'z']
-VOWS_LATIN = ['a', 'e', 'i', 'o', 'u', 'y']
-VOWS_EXTRA = ['ĳ', 'å', 'ä', 'ö', 'ø', 'æ']
-BANNED_COMBOS = [['g','j'],['f','k'],['b','k'],['l','d'],['q','p'],['w','q']]
+# Constants containing all consonants and vowels in the latin alphabet + some
+# extra non-latin letters. The number after each letter represents how common
+# a letter should be
+CONS_LATIN = ['b']*100 + ['c']*100 + ['d']*100 + ['f']*100 + ['g']*100 + ['h']*100 + ['j']*100 + ['k']*100 + ['l']*100 + ['m']*100 + ['n']*100 + ['p']*100 + ['q']*85 + ['r']*100 + ['s']*100 + ['t']*100 + ['v']*100 + ['w']*50 + ['x']*75 + ['z']*50
+VOWS_LATIN = ['a']*100 + ['e']*100 + ['i']*100 + ['o']*100 + ['u']*100 + ['y']*75
+VOWS_EXTRA = ['ĳ']*75 + ['å']*100 + ['ä']*100 + ['ö']*100 + ['ø']*75 + ['æ']*60
+
+# Banned combinations which are hard to pronounce or look weird
+BANNED_COMBOS = [['g','j'],['f','k'],['b','k'],['q','p'],['w','q'],['q','g'],['x','x'],['q', 'q'],['d','b']]
 
 def getRandomVowel
     # Only 10% chance to generate random "non-latin" vowel
@@ -27,6 +32,8 @@ def getRandomVowel
 end
 
 def getRandomVowelNoDuplicates(str:)
+    # Generate a random vowel and if it a non-latin vowel
+    # then we only use it if it has not been previously used in str
     vowel = getRandomVowel
     while VOWS_EXTRA.include? vowel and str.include? vowel
         vowel = getRandomVowel
@@ -53,6 +60,7 @@ end
 
 def generateLetter(currentName:)
     if currentName.empty?
+        # We have a 60% chance to generate a vowel as the first letter
         if rand() <= 0.6
             return Unicode::upcase getRandomVowel
         else
@@ -62,7 +70,8 @@ def generateLetter(currentName:)
     
     if currentName.length < 2
         # Append random vowel or consonant in beginning to
-        # prevent program from crashing
+        # prevent program from crashing if length of name is
+        # less than 2
         if rand() <= 0.5
             chr = getRandomVowelNoDuplicates(str: currentName)
         else
@@ -73,9 +82,11 @@ def generateLetter(currentName:)
         lastCharacters = getLastCharactersFromString(str: currentName.join(""), numChars: 2)
     end
     # Apply rules
-    # 30% chance that there will be a double vowel    
+    #
+    # 30% chance that there will be a double vowel
+    # unless the last vowel is a non-latin vowel
     if isConsonant(chr: lastCharacters[0]) and isVowel(chr: lastCharacters[1])        
-        if rand() <= 0.3
+        if rand() <= 0.3 and (VOWS_LATIN.include? lastCharacters[1])
             return lastCharacters[1]
         end
     end
@@ -135,6 +146,8 @@ def generateRandomName
         currentName = name
         counter = counter + 1
     end
+
+    # Convert the list of characters to a string using join("")
     return name.join("")
 end
 
@@ -142,10 +155,11 @@ def askForNumber
     begin
         puts "Enter number of names to generate"
         num = gets.chomp
-    end while num.to_i.to_s != num
+    end while num.to_i.to_s != num # check if num is a valid number
     return num.to_i
 end
 
+# Generate amount of names the user enters
 num = askForNumber
 num.times do
     puts generateRandomName

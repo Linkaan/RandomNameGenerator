@@ -12,6 +12,12 @@
 
 require 'unicode'
 
+# Set rng seed for debugging purposes, a constant will make the random number
+# stream much more deterministic (i.e it will be in the same order every runtime).
+# If a value of 0 is used, srand will not be called and is ruby will use use a more
+# undeterministic random number stream which varies every runtime
+SEED = 1
+
 # Constants containing all consonants and vowels in the latin alphabet + some
 # extra non-latin letters. Their weight is a number which represents how common
 # a letter will be (i.e how likely it is to be chosen at random)
@@ -30,14 +36,21 @@ def random_vowel
     (rand() < 0.1 ? VOWS_EXTRA : VOWS_LATIN).sample
 end
 
+def repeat_action_until_condition(action, condition)
+    x = action.()
+    while not condition.(x)
+        x = action.()
+    end
+    return x
+end
+
 def random_unique_vowel(str)
     # Generate a random vowel and if it a non-latin vowel
     # then we only use it if it has not been previously used in str
-    vowel = random_vowel
-    while VOWS_EXTRA.include? vowel and str.include? vowel
-        vowel = random_vowel
-    end
-    return vowel
+    repeat_action_until_condition(
+        lambda { random_vowel },
+        lambda { |x| not (VOWS_EXTRA.include? x and str.include? x) }
+    )
 end
 
 def random_consonant
@@ -46,13 +59,10 @@ end
 
 def random_valid_consonant(last_chars)
     # Prevent weird combinations like gj, fk or bk.
-    cons = random_consonant
-    for combo in BANNED_COMBOS
-        while last_chars[1] + cons == combo
-            cons = random_consonant
-        end
-    end
-    return cons
+    repeat_action_until_condition(
+        lambda { random_consonant },
+        lambda { |x| not BANNED_COMBOS.include? (last_chars[1] + x) }
+    )
 end
 
 def get_last_chars_from_str(str, num_chars)
@@ -85,13 +95,11 @@ def apply_limit_consonants(current_name, last_chars, result)
     if is_consonant(last_chars[0]) and is_consonant(last_chars[1])
         # Exception for allowed 3 consonant combinations like chr and sch
         cons = random_consonant
-        for combo in ALLOWED_COMBOS
-            if last_chars + cons == combo
-                result.replace cons
-                return true
-            end
+        if ALLOWED_COMBOS.include? (last_chars + cons)
+            result.replace cons            
+        else
+            result.replace random_unique_vowel(current_name)            
         end
-        result.replace random_unique_vowel(current_name)
         return true
     end
     return false
@@ -142,14 +150,22 @@ def generate_random_name
     return name.join
 end
 
-def ask_for_number
-    begin
-        puts "Enter number of names to generate"
-        num = gets.chomp
-    end while num.to_i.to_s != num # check if num is a valid number
-    return num.to_i
+def input(*args)
+    print(*args)
+    gets.chomp
+end
+
+def ask_positive_integer(prompt)
+    repeat_action_until_condition(
+        lambda { input(prompt) },
+        lambda { |x| x.to_i.to_s == x && x.to_i >= 0 }
+    )
+end
+
+if SEED != 0
+    srand SEED
 end
 
 # Generate amount of names the user enters
-num = ask_for_number
+num = ask_positive_integer("Amount of names to generate: ").to_i
 num.times { puts generate_random_name }
